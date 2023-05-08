@@ -1,0 +1,28 @@
+#!/bin/bash
+
+read -p "Enter a python3 path with the numpy, tqdm, cython and monty modules or enter None to download and install all python modules under ./python: " PYTHONPATH
+
+APATH=$(pwd)
+
+if [ "$PYTHONPATH" = "None" ]; then
+  mkdir python; cd python
+  wget https://www.python.org/ftp/python/3.7.7/Python-3.7.7.tgz
+  tar -zxvf Python-3.7.7.tgz
+  rm Python-3.7.7.tgz
+  cd Python-3.7.7
+
+  ./configure --prefix=$APATH/python
+  make && make install | tee make.log
+
+  cd  ../bin
+  ./pip3 install -i https://pypi.tuna.tsinghua.edu.cn/simple --upgrade pip;\
+  ./pip3 install -i https://pypi.tuna.tsinghua.edu.cn/simple numpy monty tqdm cython
+
+  PYTHONPATH=$APATH/python/bin/python3
+fi
+
+cd $APATH/src
+sed -i "s%PYTHONPATH%$PYTHONPATH%g" asba
+sed -i "s%APATH%$APATH%g" asba
+$PYTHONPATH setup.py build_ext --inplace
+rm -r build coord_cython.c

@@ -1,0 +1,57 @@
+## ASBA v1.2
+
+ASBA refers to "adaptive semirigid body approximation", 
+which is used to construct a physically reasonable initial 
+guess of the minimum energy path structures for subsequent 
+NEB/cNEB calculation.
+
+
+## Requirements
+
+* Linux
+* Python 3.7.7
+
+
+## File structure
+
+|-- ReadMe                                   // this file                                  
+|-- initialize           // script to install the program 
+|-- examples     
+|   |-- ReadMe     // instructions to execute the program       
+|   |-- 1.Ag-hopping-in-Al
+|   |-- 2.Ag-hopping-on-Ag-island
+|   |-- 3.As2-reaction-with-Bi-teminated-GaAs-surface
+|   |-- 4.PF6-passing-through-Graphdiyne
+|-- src
+|   |-- asba                            // main function                                            
+|   |-- pathfinder.py
+|   |-- input_output.py
+|   |-- rmsd.py
+|   |-- lammps.py
+|   |-- lattice.py
+|   |-- setup.py
+|   |-- coord_cython.pyx
+  
+ 
+## Installation
+
+./initialize
+
+
+## Usage
+
+See ReadMe under the examples.
+
+
+## Authors and contact
+
+Hongsheng Cai   E-mail: 11611318@mail.sustech.edu.cn
+Guoyuan Liu     E-mail: liuguoyuan01@outlook.com
+Guangfu Luo     E-mail: luogf@sustech.edu.cn
+
+
+## Acknowledgment
+
+The current program was written by revising the pymatgen-analysis-diffusion module
+(version 1.0, 2017), the contributors of which are deeply appriciated.
+See original files at https://github.com/materialsvirtuallab/pymatgen-analysis-diffusion.   

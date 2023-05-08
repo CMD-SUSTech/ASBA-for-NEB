@@ -1,0 +1,32 @@
+[Frequently used parameters]
+initial-state        = ./POSCAR_ini      # structure file of the initial state
+final-state          = ./POSCAR_fin      # structure file of the final state
+# given-initial-guess  = ./initial-images-folder # use image structures rather than structures of the initial and final states as a start point
+nearest-path         = True              # True: consider the nearest path
+images               = 3                 # total number of images
+
+bond-type            = Ag-Al,Al-Al       # chemical bonds to extract bond lengths from the structure files 
+given-atom-radius    = None              # elements with manually specified radii in angstrom. Set it to None if unapplicable.
+
+bond-type-with-pi-bond = None            # chemical bonds to add pi bond length. Set it to None if unapplicable.
+pi-bond              = 0                 # pi bond length in angstrom
+
+NLc-threshold        = 0.3               # displacement threshold to select the core nonlinear atoms; unit in angstrom
+attractive-tolerance = 0.1               # tolerance for attractive force: (1 + tol)(Ri + Rj) < dij
+repulsive-tolerance  = 0.03              # tolerance for repulsive force: dij < (1 - tol)(Ri + Rj)
+
+attractive-force-K   = 0.15              # force constant for attractive force
+repulsive-force-K    = 10.0              # force constant for repulsive force
+
+
+[Infrequently used parameters]
+force-tolerance      = 1e-3              # stopping-criterion for total force
+max-iteration        = 2000              # maximum number of iteration; 1: linear interpolation
+step-size            = 0.1               # displacement-of-each-iteration = step-size * force
+
+output-ASBA-force    = no                # yes: generate LAMMPS dump file with structural and ASBA forces for each iteration
+output-total-force   = no                # yes: generate LAMMPS dump file with structural and total forces for each iteration
+
+optimization         = None              # algorithm to update step-size; None: constant step-size; decay: dynamic step-size according to base- and max-step-size
+base-step-size       = 0.01
+max-step-size        = 0.1              

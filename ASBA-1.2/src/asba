@@ -1,0 +1,206 @@
+#!APATH/python/bin/python3
+"""
+Main function to generate the ASBA structures. 
+"""
+
+from input_output import Structure
+import configparser
+import argparse
+import time
+import os
+import glob
+import shutil
+import sys
+import importlib.util
+
+__author__ = "Hongsheng Cai, Guoyuan Liu, Guangfu Luo"
+__copyright__ = "..."
+__version__ = "1.2"
+__maintainer__ = "Hongsheng Cai"
+__email__ = "11611318@mail.sustech.edu.cn"
+__date__ = "Sep 6, 2022"
+
+# import pymatgen_diffusion from path
+module_name = "pathfinder"
+spec = importlib.util.spec_from_file_location(
+    module_name,"APATH/src/pathfinder.py"
+)
+module = importlib.util.module_from_spec(spec)
+sys.modules[module_name] = module
+spec.loader.exec_module(module)
+from pathfinder import Solver
+
+module_name = "rmsd"
+spec = importlib.util.spec_from_file_location(
+    module_name, "APATH/src/rmsd.py"
+)
+module = importlib.util.module_from_spec(spec)
+sys.modules[module_name] = module
+spec.loader.exec_module(module)
+from rmsd import rmsd_pbc
+
+
+# store the subsequent screen output in the log.txt
+class Logger(object):
+    def __init__(self, filename="Default.log"):
+        self.terminal = sys.stdout
+        self.log = open(filename, "a")
+
+    def write(self, message):
+        self.terminal.write(message)
+        self.log.write(message)
+
+    def flush(self):
+        pass
+
+sys.stdout = Logger('log.txt')
+
+
+# read config
+parser = argparse.ArgumentParser(description="Generate initial guess for NEB.")
+parser.add_argument("config", nargs=1, help="location of configuration file")
+parser.add_argument("output", nargs=1, default=".", help="output directory")
+parser.add_argument("-p", "--path", nargs="?", help="given path")
+args = parser.parse_args()
+config = configparser.ConfigParser(inline_comment_prefixes = '#')
+config_file = args.config[0]
+try:
+    config.read(config_file)
+except Exception:
+    print("failed to read config file")
+    sys.exit(1)
+save_dir = args.output[0]
+if not os.path.exists(save_dir):
+    # print("output directory does not exit")
+    # sys.exit(1)
+    os.mkdir(save_dir, mode=0o755)
+if args.path:
+    print(args.path)
+    path = glob.glob(os.path.join(args.path, "POSCAR*"))
+    print("args.path {}".format(args.path))
+
+# Frequently used parameters
+Frequently_used_parameters_conf = config["Frequently used parameters"]
+initial_state = Frequently_used_parameters_conf.get("initial-state", "CONTCAR-ini")
+final_state = Frequently_used_parameters_conf.get("final-state", "CONTCAR-fin")
+given_initial_guess = Frequently_used_parameters_conf.get("given-initial-guess")
+nearest_path = Frequently_used_parameters_conf.getboolean("nearest-path", True)
+nimages = Frequently_used_parameters_conf.getint("images", 3)
+bond_type = Frequently_used_parameters_conf.get("bond-type")
+bond_type_with_pi_bond = Frequently_used_parameters_conf.get("bond-type-with-pi-bond")
+pi_bond = Frequently_used_parameters_conf.getfloat("pi-bond")
+given_atom_radius = Frequently_used_parameters_conf.get("given-atom-radius")
+k_att = Frequently_used_parameters_conf.getfloat("attractive-force-K", 0.05)
+k_rep = Frequently_used_parameters_conf.getfloat("repulsive-force-K", 5.0)
+att_tol = Frequently_used_parameters_conf.getfloat("attractive-tolerance", 0.2)
+rep_tol = Frequently_used_parameters_conf.getfloat("repulsive-tolerance", 0.0)
+NLc_threshold = Frequently_used_parameters_conf.getfloat("NLc-threshold", 2.0)
+
+# Infrequently used parameters
+Infrequently_used_parameters_config = config["Infrequently used parameters"]
+ASBA_iter = Infrequently_used_parameters_config.getint("max-iteration")
+ASBA_ftol = Infrequently_used_parameters_config.getfloat("force-tolerance")
+dump_dir = Infrequently_used_parameters_config.get("dump-directory", None)
+if not dump_dir:
+    dump_dir = save_dir
+optimization_method = Infrequently_used_parameters_config.get(
+    "optimization", "None"
+)  # available_method: 'decay', 'expo', 'triangular'
+dump_asba = Infrequently_used_parameters_config.getboolean("output-ASBA-force", True)
+dump_total = Infrequently_used_parameters_config.getboolean("output-total-force", True)
+ASBA_step_size = Infrequently_used_parameters_config.getfloat("step-size", 0.05)
+base_step = Infrequently_used_parameters_config.getfloat("base-step-size", 0.01)
+max_step = Infrequently_used_parameters_config.getfloat("max-step-size", 0.05)
+
+
+# initialize images
+# linear interpolation from endpoints
+if not args.path:
+    if not given_initial_guess:
+        ini = Structure.from_file(initial_state)
+        fin = Structure.from_file(final_state)
+        obj = Solver.from_endpoints(endpoints=[ini, fin], nimages=nimages, sort_tol=0, switch=nearest_path)
+        # print("nearest path:{}".format(nearest_path))
+    else:
+        structs = []
+        initial_guesses = os.listdir(given_initial_guess)
+        for f in initial_guesses:
+            initial_guess = os.path.join(given_initial_guess, f)
+            structs.append(Structure.from_file(initial_guess))
+        obj = Solver(structs)
+# read whole path
+else:
+    structs = []
+    for f in path:
+        structs.append(Structure.from_file(f))
+    obj = Solver(structs)
+
+
+# optimize images
+path_for_ASBA = obj.structures
+if ASBA_iter:
+    print("Generate ASBA structures\n")
+    ASBA_path = obj.ASBA_NEB(
+        ini_structure=initial_state,
+        fin_structure=final_state,
+        bond_type=bond_type,
+        bond_type_with_pi_bond=bond_type_with_pi_bond,
+        pi_bond=pi_bond,
+        given_atom_radius=given_atom_radius,
+        path=path_for_ASBA,
+        maxiter=ASBA_iter,
+        ftol=ASBA_ftol,
+        dump_dir=dump_dir,
+        dump_asba=dump_asba,
+        dump_total=dump_total,
+        step_size=ASBA_step_size,
+        k_att=k_att,
+        k_rep=k_rep,
+        base_step=base_step,
+        max_step=max_step,
+        att_tol=att_tol,
+        rep_tol=rep_tol,
+        NLc_threshold=NLc_threshold,
+        step_update_method=optimization_method
+    )
+
+
+# output 00,01,...folders
+if ASBA_iter:
+    result = ASBA_path
+
+print("\nimage distance:")
+
+if not os.path.exists(save_dir):
+    os.mkdir(save_dir)
+for n, struct in enumerate(result):
+    struct.to(filename="{}/POSCAR_{:02d}".format(save_dir, n))
+
+for n in range(len(result)):
+    foldername = "{}/{:02d}".format(save_dir, n)
+    os.makedirs(foldername)
+    filename="{}/POSCAR_{:02d}".format(save_dir, n)
+    newfilename = "{}/{:02d}/POSCAR".format(save_dir, n)
+    shutil.copy(filename, newfilename)
+
+# output RMSD
+for n in range(len(result) - 1):
+    structure_1_path = "{}/POSCAR_{:02d}".format(save_dir, n)
+    structure_2_path = "{}/POSCAR_{:02d}".format(save_dir, n + 1)
+    print(
+        "{} <-> {}: {}".format(
+            n, n + 1, rmsd_pbc(structure_1_path, structure_2_path)
+        )
+    )
+print("\n")
+
+
+# move log.txt and config
+if save_dir != ".":
+    shutil.move('log.txt', save_dir)
+    shutil.copy(config_file, save_dir)
+
+
+# delete selective dynamics data
+if os.path.exists("SD_data.txt"):
+   os.remove("SD_data.txt")

@@ -1,0 +1,17 @@
+## Usage of ASBA
+
+1. Prepare the VASP format structure files for the initial and final states, such as the POSCAR_ini and
+   POSCAR_fin in the examples.
+
+2. Set parameters in the configuration file config, e.g.
+initial-state            = ./POSCAR_ini     # structure file of the initial state
+final-state              = ./POSCAR_fin     # structure file of the final state
+nearest-path             = True             # True: consider the nearest path
+images                   = 3                # total number of images
+bond-type                = C-C,P-F          # chemical bonds to extract bond lengths from the structure files
+given-atom-radius        = P:0.52,Li:0.9    # elements with manually specified radii in angstrom. Set it to None if unapplicable.
+bond-type-with-pi-bond   = C-F              # chemical bonds to add pi bond length. Set it to None if unapplicable.
+pi-bond                  = 0.7              # pi bond length in angstrom
+
+3. Use asba to generate the initial guess of MEP structures to a specified folder. 
+$ASBA-folder/src/asba config output_folder
